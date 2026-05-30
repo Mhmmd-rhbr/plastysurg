@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #0F172A;
+    --foreground: #F8FAFC;
+    --primary: #0EA5E9;
+    --primary-hover: #0284C7;
+    --primary-foreground: #FFFFFF;
+    --secondary: #1E293B;
+    --secondary-foreground: #F8FAFC;
+    --accent: #06B6D4;
+    --accent-foreground: #0F172A;
+    --destructive: #EF4444;
+    --destructive-foreground: #F8FAFC;
+    --success: #10B981;
+    --warning: #F59E0B;
+    --muted: #334155;
+    --muted-foreground: #94A3B8;
+    --border: #334155;
+    --input: #1E293B;
+    --ring: #0EA5E9;
+    --radius: 0.75rem;
+    --surface-dark: #1E293B;
+    --surface-medium: #334155;
+    --surface-light: #475569;
+    /* Procedure colors */
+    --rhinoplasty: #06B6D4;
+    --blepharoplasty: #8B5CF6;
+    --pre-op: #F59E0B;
+    --post-op: #10B981;
+    --ai-analysis: #EC4899;
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  body {
+    font-family: 'Inter', 'Vazirmatn', sans-serif;
+    background-color: var(--background);
+    color: var(--foreground);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  html[dir='rtl'] body {
+    font-family: 'Vazirmatn', 'Inter', sans-serif;
+  }
+
+  html[dir='ltr'] body {
+    font-family: 'Inter', 'Vazirmatn', sans-serif;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+
+  /* Selection */
+  ::selection {
+    background: rgba(14, 165, 233, 0.3);
+    color: #F8FAFC;
+  }
+}
+
+@layer components {
+  /* Glassmorphism card */
+  .glass-card {
+    @apply bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-xl;
+  }
+
+  /* Medical teal glow button */
+  .btn-primary {
+    @apply bg-gradient-to-r from-[#0EA5E9] to-[#0284C7] hover:from-[#0284C7] hover:to-[#0369A1] text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-[#0EA5E9]/25 transition-all min-h-[44px] flex items-center justify-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply bg-slate-700/50 hover:bg-slate-700 text-slate-200 font-medium py-3 px-6 rounded-xl border border-slate-600/50 transition-all min-h-[44px] flex items-center justify-center gap-2;
+  }
+
+  .btn-danger {
+    @apply bg-red-500/10 hover:bg-red-500/20 text-red-400 font-medium py-3 px-6 rounded-xl border border-red-500/20 transition-all min-h-[44px] flex items-center justify-center gap-2;
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent p-3.5 transition-all outline-none placeholder:text-slate-600;
+  }
+
+  /* Monospace for measurements */
+  .font-mono-data {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Scan animation */
+  .scan-line {
+    animation: scan-sweep 2s linear infinite;
+  }
+
+  /* Pulse glow */
+  .glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+}
+
+@layer utilities {
+  .rtl-flip {
+    transform: scaleX(-1);
+  }
+  html[dir="ltr"] .rtl-flip {
+    transform: scaleX(1);
+  }
+}
+
+/* Keyframes */
+@keyframes scan-sweep {
+  0% { transform: translateY(-100%); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 5px rgba(14, 165, 233, 0.3); }
+  50% { box-shadow: 0 0 20px rgba(14, 165, 233, 0.5), 0 0 40px rgba(14, 165, 233, 0.2); }
+}
