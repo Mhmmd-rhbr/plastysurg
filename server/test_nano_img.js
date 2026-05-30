@@ -1,0 +1,29 @@
+import axios from 'axios';
+import dotenv from 'dotenv';
+dotenv.config({ path: '../.env' });
+
+async function test(modelName) {
+  try {
+    const payload = {
+      model: modelName,
+      messages: [{
+        role: 'user',
+        content: `I am confirming the parameters for the rhinoplasty. Please produce the edited image now. 
+Parameters:
+- Hump reduction: 10%
+- Tip rotation: 5 degrees
+Return ONLY the markdown link to the edited image like ![edited image](https://...)`
+      }]
+    };
+
+    console.log(`Testing ${modelName}...`);
+    const res = await axios.post('https://citygpt.ir/api/v1/chat/completions', payload, {
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${process.env.CITYGPT_API_KEY}` }
+    });
+    console.log(`Success ${modelName}! Response:`, res.data.choices[0].message.content);
+  } catch (e) {
+    console.error(`Error ${modelName}:`, e?.response?.data || e.message);
+  }
+}
+
+test('gpt-5-nano');

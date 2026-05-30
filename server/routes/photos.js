@@ -7,7 +7,6 @@ import db from '../db/schema.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
-router.use(authenticateToken);
 
 const uploadDir = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(uploadDir)) {
@@ -35,6 +34,27 @@ const upload = multer({
     }
   }
 });
+
+/**
+ * Upload a demo photo for standalone simulation
+ */
+router.post('/upload-demo', upload.single('photo'), (req, res, next) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'لطفاً یک تصویر انتخاب کنید.' });
+    }
+    const id = uuidv4();
+    const filePath = `/uploads/${req.file.filename}`;
+    
+    res.status(201).json({ id, filePath, message: 'تصویر با موفقیت آپلود شد.' });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Require auth for real endpoints
+router.use(authenticateToken);
+
 
 /**
  * Upload a photo for a case
