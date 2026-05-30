@@ -1,6 +1,6 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import db from '../db/schema.js';
+import { supabase } from '../db/supabase.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -10,10 +10,16 @@ router.use(authenticateToken);
 /**
  * Get all patients for the logged-in surgeon
  */
-router.get('/', (req, res, next) => {
+router.get('/', async (req, res, next) => {
   try {
-    const patients = db.prepare('SELECT * FROM patients WHERE surgeon_id = ? ORDER BY created_at DESC').all(req.user.id);
-    res.json(patients);
+    const { data: patients, error } = await supabase
+      .from('patients')
+      .select('*')
+      .eq('surgeon_id', req.user.id)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    res.json(patients || []);
   } catch (error) {
     next(error);
   }
@@ -22,16 +28,30 @@ router.get('/', (req, res, next) => {
 /**
  * Get a specific patient by ID
  */
-router.get('/:id', (req, res, next) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const patient = db.prepare('SELECT * FROM patients WHERE id = ? AND surgeon_id = ?').get(req.params.id, req.user.id);
+    const { data: patient, error: patientError } = await supabase
+      .from('patients')
+      .select('*')
+      .eq('id', req.params.id)
+      .eq('surgeon_id', req.user.id)
+      .maybeSingle();
+
+    if (patientError) throw patientError;
     if (!patient) {
       return res.status(404).json({ error: 'بیمار مورد نظر یافت نشد.' });
     }
     
     // Get cases for this patient
-    const cases = db.prepare('SELECT * FROM cases WHERE patient_id = ? ORDER BY created_at DESC').all(patient.id);
-    res.json({ ...patient, cases });
+    const { data: cases, error: casesError } = await supabase
+      .from('cases')
+      .select('*')
+      .eq('patient_id', patient.id)
+      .order('created_at', { ascending: false });
+      
+    if (casesError) throw casesError;
+    
+    res.json({ ...patient, cases: cases || [] });
   } catch (error) {
     next(error);
   }
@@ -40,7 +60,7 @@ router.get('/:id', (req, res, next) => {
 /**
  * Create a new patient
  */
-router.post('/', (req, res, next) => {
+router.post('/', async (req, res, next) => {
   try {
     const { first_name, last_name, national_id, phone } = req.body;
     
@@ -49,16 +69,26 @@ router.post('/', (req, res, next) => {
     }
 
     const id = uuidv4();
-    db.prepare(`
-      INSERT INTO patients (id, surgeon_id, first_name, last_name, national_id, phone)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `).run(id, req.user.id, first_name, last_name, national_id || null, phone || null);
+    const { error: patientError } = await supabase.from('patients').insert({
+      id,
+      surgeon_id: req.user.id,
+      first_name,
+      last_name,
+      national_id: national_id || null,
+      phone: phone || null
+    });
+    
+    if (patientError) throw patientError;
 
     // Create a default open case
     const caseId = uuidv4();
-    db.prepare(`
-      INSERT INTO cases (id, patient_id, notes) VALUES (?, ?, ?)
-    `).run(caseId, id, 'پرونده اولیه');
+    const { error: caseError } = await supabase.from('cases').insert({
+      id: caseId,
+      patient_id: id,
+      notes: 'پرونده اولیه'
+    });
+    
+    if (caseError) throw caseError;
 
     res.status(201).json({ id, message: 'بیمار با موفقیت ثبت شد.' });
   } catch (error) {

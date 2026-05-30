@@ -1,6 +1,6 @@
 import express from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import db from '../db/schema.js';
+import { supabase } from '../db/supabase.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { analyzeFaceCityGPT } from '../services/citygptService.js';
 import { buildFaceAnalysisPrompt } from '../services/promptEngineeringService.js';
@@ -89,20 +89,31 @@ router.post('/start', async (req, res, next) => {
       return res.status(400).json({ error: 'شناسه پرونده و تصویر الزامی است.' });
     }
 
-    const photo = db.prepare('SELECT * FROM photos WHERE id = ? AND case_id = ?').get(photo_id, case_id);
-    if (!photo) {
+    const { data: photo, error: photoError } = await supabase
+      .from('photos')
+      .select('*')
+      .eq('id', photo_id)
+      .eq('case_id', case_id)
+      .maybeSingle();
+
+    if (photoError || !photo) {
       return res.status(404).json({ error: 'تصویر مورد نظر یافت نشد.' });
     }
 
     const simId = uuidv4();
-    db.prepare(`
-      INSERT INTO simulations (id, case_id, original_photo_id, parameters, status)
-      VALUES (?, ?, ?, ?, 'processing')
-    `).run(simId, case_id, photo_id, JSON.stringify(parameters || {}));
+    const { error: insertError } = await supabase.from('simulations').insert({
+      id: simId,
+      case_id,
+      original_photo_id: photo_id,
+      parameters: JSON.stringify(parameters || {}),
+      status: 'processing'
+    });
 
-    // Perform AI analysis
+    if (insertError) throw insertError;
+
+    // Perform AI analysis (Assuming analyzeFaceGemini is replaced with analyzeFaceCityGPT)
     const prompt = buildFaceAnalysisPrompt(preferences, photo.view_type);
-    const analysisResult = await analyzeFaceGemini(photo.file_path, prompt);
+    const analysisResult = await analyzeFaceCityGPT(photo.file_path, prompt);
 
     // Generate Post-op Simulation using CityGPT DALL-E
     const parametersString = JSON.stringify(parameters || {});
@@ -110,9 +121,12 @@ router.post('/start', async (req, res, next) => {
     const imageResult = await generateCityGPTImage(imagePrompt, photo.file_path);
 
     // Update simulation status
-    db.prepare(`
-      UPDATE simulations SET status = 'completed', result_photo_path = ? WHERE id = ?
-    `).run(imageResult.imageUrl, simId);
+    const { error: updateError } = await supabase
+      .from('simulations')
+      .update({ status: 'completed', result_photo_path: imageResult.imageUrl })
+      .eq('id', simId);
+
+    if (updateError) throw updateError;
 
     res.status(201).json({ 
       id: simId, 
@@ -127,16 +141,20 @@ router.post('/start', async (req, res, next) => {
 /**
  * Get simulations for a case
  */
-router.get('/case/:caseId', (req, res, next) => {
+router.get('/case/:caseId', async (req, res, next) => {
   try {
-    const simulations = db.prepare(`
-      SELECT * FROM simulations WHERE case_id = ? ORDER BY created_at DESC
-    `).all(req.params.caseId);
+    const { data: simulations, error } = await supabase
+      .from('simulations')
+      .select('*')
+      .eq('case_id', req.params.caseId)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
     
     // Parse JSON parameters safely
-    const parsedSimulations = simulations.map(sim => ({
+    const parsedSimulations = (simulations || []).map(sim => ({
       ...sim,
-      parameters: sim.parameters ? JSON.parse(sim.parameters) : {}
+      parameters: typeof sim.parameters === 'string' ? JSON.parse(sim.parameters) : (sim.parameters || {})
     }));
 
     res.json(parsedSimulations);

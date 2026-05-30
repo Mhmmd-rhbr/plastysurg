@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import db from '../db/schema.js';
+import { supabase } from '../db/supabase.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -59,7 +59,7 @@ router.use(authenticateToken);
 /**
  * Upload a photo for a case
  */
-router.post('/upload', upload.single('photo'), (req, res, next) => {
+router.post('/upload', upload.single('photo'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'لطفاً یک تصویر انتخاب کنید.' });
@@ -73,13 +73,14 @@ router.post('/upload', upload.single('photo'), (req, res, next) => {
     }
 
     // Verify case belongs to surgeon's patient
-    const caseRecord = db.prepare(`
-      SELECT c.id FROM cases c
-      JOIN patients p ON c.patient_id = p.id
-      WHERE c.id = ? AND p.surgeon_id = ?
-    `).get(case_id, req.user.id);
+    const { data: caseRecord, error: caseError } = await supabase
+      .from('cases')
+      .select('id, patients!inner(surgeon_id)')
+      .eq('id', case_id)
+      .eq('patients.surgeon_id', req.user.id)
+      .maybeSingle();
 
-    if (!caseRecord) {
+    if (caseError || !caseRecord) {
       fs.unlinkSync(req.file.path);
       return res.status(404).json({ error: 'پرونده مورد نظر یافت نشد یا دسترسی ندارید.' });
     }
@@ -87,10 +88,14 @@ router.post('/upload', upload.single('photo'), (req, res, next) => {
     const id = uuidv4();
     const filePath = `/uploads/${req.file.filename}`;
 
-    db.prepare(`
-      INSERT INTO photos (id, case_id, file_path, view_type)
-      VALUES (?, ?, ?, ?)
-    `).run(id, case_id, filePath, view_type);
+    const { error: insertError } = await supabase.from('photos').insert({
+      id,
+      case_id,
+      file_path: filePath,
+      view_type
+    });
+
+    if (insertError) throw insertError;
 
     res.status(201).json({ id, filePath, message: 'تصویر با موفقیت آپلود شد.' });
   } catch (error) {
@@ -101,23 +106,31 @@ router.post('/upload', upload.single('photo'), (req, res, next) => {
 /**
  * Get photos for a case
  */
-router.get('/case/:caseId', (req, res, next) => {
+router.get('/case/:caseId', async (req, res, next) => {
   try {
     const { caseId } = req.params;
     
     // Authorization check
-    const authCheck = db.prepare(`
-      SELECT c.id FROM cases c
-      JOIN patients p ON c.patient_id = p.id
-      WHERE c.id = ? AND p.surgeon_id = ?
-    `).get(caseId, req.user.id);
+    const { data: authCheck, error: authError } = await supabase
+      .from('cases')
+      .select('id, patients!inner(surgeon_id)')
+      .eq('id', caseId)
+      .eq('patients.surgeon_id', req.user.id)
+      .maybeSingle();
 
-    if (!authCheck) {
+    if (authError || !authCheck) {
       return res.status(404).json({ error: 'پرونده یافت نشد.' });
     }
 
-    const photos = db.prepare('SELECT * FROM photos WHERE case_id = ? ORDER BY uploaded_at DESC').all(caseId);
-    res.json(photos);
+    const { data: photos, error: photosError } = await supabase
+      .from('photos')
+      .select('*')
+      .eq('case_id', caseId)
+      .order('uploaded_at', { ascending: false });
+
+    if (photosError) throw photosError;
+    
+    res.json(photos || []);
   } catch (error) {
     next(error);
   }

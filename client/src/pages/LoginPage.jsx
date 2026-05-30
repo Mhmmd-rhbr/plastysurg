@@ -9,7 +9,10 @@ import api from '../services/api';
 const LoginPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
+  const [medicalCouncilNumber, setMedicalCouncilNumber] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -22,14 +25,17 @@ const LoginPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
-      const res = await api.post(endpoint, { username, password });
-      login(res.data.user || { username }, res.data.token);
+      const endpoint = isRegister ? '/auth/register' : '/auth/login';
+      const payload = isRegister 
+        ? { username, password, firstName, lastName, medicalCouncilNumber } 
+        : { medicalCouncilNumber, password };
+      const res = await api.post(endpoint, payload);
+      login(res.data.user || { username: isRegister ? username : medicalCouncilNumber }, res.data.token);
       navigate('/dashboard');
     } catch (err) {
       // DEMO_MODE fallback: if server is down, do a local demo login
       if (err.code === 'ERR_NETWORK' || err.response?.status >= 500) {
-        login({ username, role: 'surgeon', id: 'demo-doc-1' }, 'demo-token-xyz');
+        login({ username: isRegister ? username : 'demo', role: 'surgeon', id: 'demo-doc-1' }, 'demo-token-xyz');
         navigate('/dashboard');
         return;
       }
@@ -108,10 +114,65 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5" dir={isRtl ? 'rtl' : 'ltr'}>
-            {/* Username */}
+            {isRegister && (
+              <>
+                <div className="flex gap-4">
+                  {/* First Name */}
+                  <div className="flex-1">
+                    <label className="block text-slate-300 text-sm font-medium mb-2">
+                      {t('auth.firstName', 'نام')}
+                    </label>
+                    <input
+                      type="text"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className={`block w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent p-3.5 transition-all outline-none placeholder:text-slate-600`}
+                      placeholder={t('auth.firstNamePlaceholder', 'نام')}
+                      required
+                    />
+                  </div>
+                  {/* Last Name */}
+                  <div className="flex-1">
+                    <label className="block text-slate-300 text-sm font-medium mb-2">
+                      {t('auth.lastName', 'نام خانوادگی')}
+                    </label>
+                    <input
+                      type="text"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      className={`block w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent p-3.5 transition-all outline-none placeholder:text-slate-600`}
+                      placeholder={t('auth.lastNamePlaceholder', 'نام خانوادگی')}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Username */}
+                <div>
+                  <label className="block text-slate-300 text-sm font-medium mb-2">
+                    {t('auth.usernameLabel', 'نام کاربری')}
+                  </label>
+                  <div className="relative">
+                    <div className={`absolute inset-y-0 ${isRtl ? 'right-0 pr-3' : 'left-0 pl-3'} flex items-center pointer-events-none`}>
+                      <User className="h-5 w-5 text-slate-500" />
+                    </div>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      className={`block w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent ${isRtl ? 'pr-10 text-right' : 'pl-10 text-left'} p-3.5 transition-all outline-none placeholder:text-slate-600`}
+                      placeholder={t('auth.usernamePlaceholder', 'نام کاربری')}
+                      required
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Medical Council Number */}
             <div>
               <label className="block text-slate-300 text-sm font-medium mb-2">
-                {t('auth.username', 'شماره نظام پزشکی')}
+                {t('auth.medicalCouncilNumber', 'شماره نظام پزشکی')}
               </label>
               <div className="relative">
                 <div className={`absolute inset-y-0 ${isRtl ? 'right-0 pr-3' : 'left-0 pl-3'} flex items-center pointer-events-none`}>
@@ -119,10 +180,10 @@ const LoginPage = () => {
                 </div>
                 <input
                   type="text"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={medicalCouncilNumber}
+                  onChange={(e) => setMedicalCouncilNumber(e.target.value)}
                   className={`block w-full bg-slate-900/50 border border-slate-700 text-white rounded-xl focus:ring-2 focus:ring-[#0EA5E9] focus:border-transparent ${isRtl ? 'pr-10 text-right' : 'pl-10 text-left'} p-3.5 transition-all outline-none placeholder:text-slate-600`}
-                  placeholder={t('auth.usernamePlaceholder', 'نام کاربری یا شماره نظام پزشکی')}
+                  placeholder={t('auth.medicalCouncilNumberPlaceholder', 'شماره نظام پزشکی')}
                   required
                 />
               </div>

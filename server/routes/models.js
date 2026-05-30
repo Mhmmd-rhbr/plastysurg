@@ -1,7 +1,7 @@
 import express from 'express';
 import { authenticateToken } from '../middleware/auth.js';
 import { generate3DModel } from '../services/meshyService.js';
-import db from '../db/schema.js';
+import { supabase } from '../db/supabase.js';
 
 const router = express.Router();
 router.use(authenticateToken);
@@ -17,7 +17,13 @@ router.post('/generate', async (req, res, next) => {
       return res.status(400).json({ error: 'شناسه پرونده الزامی است.' });
     }
 
-    const photos = db.prepare('SELECT file_path FROM photos WHERE case_id = ?').all(case_id);
+    const { data: photos, error } = await supabase
+      .from('photos')
+      .select('file_path')
+      .eq('case_id', case_id);
+
+    if (error) throw error;
+    
     if (!photos || photos.length === 0) {
       return res.status(400).json({ error: 'برای این پرونده هیچ تصویری یافت نشد.' });
     }
