@@ -6,7 +6,7 @@ import bcryptjs from 'bcryptjs';
 dotenv.config({ path: path.resolve(process.cwd(), '..', '.env') });
 dotenv.config();
 
-const dbPath = process.env.DB_PATH || './data/facevision.db';
+const dbPath = process.env.DB_PATH || (process.env.VERCEL ? '/tmp/facevision.db' : './data/facevision.db');
 
 // Ensure data directory exists
 const dataDir = path.dirname(dbPath);
